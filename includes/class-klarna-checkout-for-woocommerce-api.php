@@ -512,6 +512,7 @@ class Klarna_Checkout_For_WooCommerce_API {
 		$request_args['options']['allow_separate_shipping_address']          = $this->get_allow_separate_shipping_address();
 		$request_args['options']['date_of_birth_mandatory']                  = $this->get_dob_mandatory();
 		$request_args['options']['national_identification_number_mandatory'] = $this->get_dob_mandatory();
+		$request_args['options']['verify_national_identification_number']    = $this->get_dob_mandatory();
 		$request_args['options']['title_mandatory']                          = $this->get_title_mandatory();
 
 		if ( $this->get_iframe_colors() ) {
