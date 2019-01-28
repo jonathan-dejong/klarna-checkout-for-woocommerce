@@ -590,6 +590,10 @@ class Klarna_Checkout_For_WooCommerce_API {
 			'merchant_data'      => $this->get_merchant_data(),
 		);
 
+		if ( WC()->cart->needs_shipping() ) {
+			$request_args['shipping_options'] = $this->get_shipping_options();
+		}
+
 		if ( kco_wc_prefill_allowed() ) {
 			$request_args['billing_address'] = array(
 				'email'           => WC()->checkout()->get_value( 'billing_email' ),
@@ -667,6 +671,41 @@ class Klarna_Checkout_For_WooCommerce_API {
 		$wc_countries = new WC_Countries();
 
 		return array_keys( $wc_countries->get_shipping_countries() );
+	}
+
+	/**
+	 * Gets shipping options formatted for Klarna.
+	 *
+	 * @return array
+	 */
+	public function get_shipping_options() {
+		if ( WC()->cart->needs_shipping() ) {
+			WC()->cart->calculate_shipping();
+			$shipping_options = array();
+			$packages         = WC()->shipping->get_packages();
+			foreach ( $packages as $i => $package ) {
+				$chosen_method = isset( WC()->session->chosen_shipping_methods[ $i ] ) ? WC()->session->chosen_shipping_methods[ $i ] : '';
+				foreach ( $package['rates'] as $method ) {
+					$method_id          = sanitize_title( $method->id );
+					$method_name        = $method->label;
+					$method_price       = intval( round( $method->cost + array_sum( $method->taxes ), 2 ) * 100 );
+					$method_tax_amount  = intval( round( array_sum( $method->taxes ), 2 ) * 100 );
+					$method_tax_rate    = intval( round( ( array_sum( $method->taxes ) / $method->cost ) * 100, 2 ) * 100 );
+					$method_selected    = $method->id === $chosen_method ? true : false;
+					$shipping_options[] = array(
+						'id'          => $method_id,
+						'name'        => $method_name,
+						'price'       => $method_price,
+						'tax_amount'  => $method_tax_amount,
+						'tax_rate'    => $method_tax_rate,
+						'preselected' => $method_selected,
+					);
+				}
+			}
+			return apply_filters( 'kco_wc_shipping_options', $shipping_options );
+		} else {
+			return array();
+		}
 	}
 
 	/**
