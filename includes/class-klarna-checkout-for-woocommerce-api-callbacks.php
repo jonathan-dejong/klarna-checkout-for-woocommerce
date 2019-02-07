@@ -294,6 +294,14 @@ class Klarna_Checkout_For_WooCommerce_API_Callbacks {
 			foreach ( $coupons as $coupon ) {
 				$wc_coupon = new WC_Coupon( $coupon );
 
+				// Check valid emails for email coupon restrictions.
+				$email_restrictions = $wc_coupon->get_email_restrictions();
+				$valid_coupon_email = true;
+				if ( is_array( $email_restrictions ) && 0 < count( $email_restrictions ) ) {
+					$valid_coupon_email = WC()->cart->is_coupon_emails_allowed( $emails, $email_restrictions );
+				}
+
+				// Usage limit per user
 				$limit_per_user = $wc_coupon->get_usage_limit_per_user();
 				if ( 0 < $limit_per_user ) {
 					$used_by         = $wc_coupon->get_used_by();
@@ -302,9 +310,10 @@ class Klarna_Checkout_For_WooCommerce_API_Callbacks {
 					// Check usage against emails.
 					foreach ( $emails as $email ) {
 						WC()->customer->set_email( $email );
-						$usage_count      += count( array_keys( $used_by, $email, true ) );
-						$user              = get_user_by( 'email', $email );
-						$user_id_matches[] = $user ? $user->ID : 0;
+						$usage_count        += count( array_keys( $used_by, $email, true ) );
+						$usage_limit_reached = false;
+						$user                = get_user_by( 'email', $email );
+						$user_id_matches[]   = $user ? $user->ID : 0;
 					}
 					// Check against billing emails of existing users.
 					$users_query     = new WP_User_Query(
@@ -324,8 +333,11 @@ class Klarna_Checkout_For_WooCommerce_API_Callbacks {
 						$usage_count += count( array_keys( $used_by, (string) $user_id, true ) );
 					}
 					if ( $usage_count >= $wc_coupon->get_usage_limit_per_user() ) {
-						$coupon_valid = false;
+						$usage_limit_reached = true;
 					}
+				}
+				if ( ! $valid_coupon_email || $usage_limit_reached ) {
+					$coupon_valid = false;
 				}
 			}
 		}
